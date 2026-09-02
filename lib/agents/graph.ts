@@ -37,14 +37,36 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
   return { tickersScreened: tickers, marketData }
 }
 
+// async function committeeNode(
+//   state: GraphStateType
+// ): Promise<Partial<GraphStateType>> {
+//   const proposals = await Promise.all(
+//     personas.map((propose) =>
+//       propose({ tickers: state.tickersScreened, marketData: state.marketData })
+//     )
+//   )
+//   return {
+//     proposals,
+//     personaMessages: proposals.map((p) => ({
+//       persona: p.persona,
+//       content: p.rationale,
+//       stance: p.stance,
+//       proposedTicker: p.ticker,
+//     })),
+//   }
+// }
+
 async function committeeNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
-  const proposals = await Promise.all(
-    personas.map((propose) =>
-      propose({ tickers: state.tickersScreened, marketData: state.marketData })
-    )
-  )
+  const proposals: (PersonaProposal & { persona: string })[] = []
+  for (const propose of personas) {
+    const result = await propose({
+      tickers: state.tickersScreened,
+      marketData: state.marketData,
+    })
+    proposals.push(result)
+  }
   return {
     proposals,
     personaMessages: proposals.map((p) => ({
@@ -146,5 +168,5 @@ export function buildGraph() {
     .addEdge("committee", "risk_gate")
     .addEdge("risk_gate", "execution")
     .addEdge("execution", END)
-    .compile();
+    .compile()
 }
