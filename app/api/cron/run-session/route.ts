@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildGraph } from "@/lib/agents/graph";
 import { createSession } from "@/lib/db/queries";
-
+export const maxDuration = 60;
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
