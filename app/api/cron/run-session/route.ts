@@ -1,7 +1,7 @@
 // Path: app/api/cron/run-session/route.ts
 import { after, NextRequest, NextResponse } from "next/server";
 import { buildGraph } from "@/lib/agents/graph";
-import { createSession } from "@/lib/db/queries";
+import { createSession, markSessionStatus } from "@/lib/db/queries";
 export const maxDuration = 300;
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
       console.log(`[cron] session ${session.id} complete:`, result.finalTicker, result.riskGate);
     } catch (err) {
       console.error(`[cron] session ${session.id} failed:`, err);
+      await markSessionStatus(session.id, "skipped").catch(() => {});
     }
   });
   // const graph = buildGraph();
