@@ -82,7 +82,7 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
 async function committeeNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
-  const proposals = await mapWithLimit(personas, 2, (propose) =>
+  const proposals = await mapWithLimit(personas, 1, (propose) =>
     propose({ tickers: state.tickersScreened, marketData: state.marketData })
   )
   return {
