@@ -118,7 +118,7 @@ async function committeeNode(
 ): Promise<Partial<GraphStateType>> {
   console.log("[graph] committee: start")
 
-  const proposals = await mapWithLimit(personas, 2, async (propose) => {
+  const proposals = await mapWithLimit(personas, 1, async (propose) => {
     const started = Date.now()
 
     try {
