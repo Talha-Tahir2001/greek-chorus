@@ -7,7 +7,7 @@ export function createFeatherlessModel(model: string, temperature = 0.4) {
     temperature,
     maxRetries: 3,
     apiKey: process.env.FEATHERLESS_AI_API_KEY,
-    configuration: { baseURL: "https://api.featherless.ai/v1" },
+    configuration: { baseURL: "https://api.featherless.ai/v1", timeout: 25_000 },
   })
 }
 
