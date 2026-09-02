@@ -135,17 +135,16 @@ async function executionNode(
   return {}
 }
 
-// Path: lib/agents/graph.ts
 export function buildGraph() {
   return new StateGraph(GraphState)
     .addNode("screener", screenerNode)
     .addNode("committee", committeeNode)
-    .addNode("riskGate", riskGateNode)
+    .addNode("risk_gate", riskGateNode)
     .addNode("execution", executionNode)
     .addEdge(START, "screener")
     .addEdge("screener", "committee")
-    .addEdge("committee", "riskGate")
-    .addEdge("riskGate", "execution")
+    .addEdge("committee", "risk_gate")
+    .addEdge("risk_gate", "execution")
     .addEdge("execution", END)
     .compile();
 }
