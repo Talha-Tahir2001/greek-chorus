@@ -6,8 +6,8 @@ let cachedAlpaca: InstanceType<typeof Alpaca> | null = null;
 function getAlpaca() {
   if (cachedAlpaca) return cachedAlpaca;
   cachedAlpaca = new Alpaca({
-    keyId: process.env.ALPACA_API_KEY_ID!,
-    secret: process.env.ALPACA_API_SECRET_KEY!,
+    keyId: process.env.ALPACA_API_KEY!,
+    secret: process.env.ALPACA_SECRET_KEY!,
     paper: process.env.ALPACA_PAPER !== "false",
   });
   return cachedAlpaca;
