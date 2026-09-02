@@ -3,6 +3,8 @@ import { getAlpacaMcpTools, type McpTool } from "@/lib/mcp/client";
 import { parseAlpacaToolResult } from "@/lib/mcp/parse-result";
 import type { MarketMoversData, OptionChainData } from "@/lib/mcp/alpaca-types";
 
+const FALLBACK_TICKERS = ["SPY", "QQQ", "AAPL", "NVDA", "TSLA"];
+
 function findTool(tools: McpTool[], name: string): McpTool | undefined {
   return tools.find((t) => t.name === name);
 }
@@ -12,7 +14,7 @@ export async function screenCandidates(): Promise<{ tickers: string[]; marketDat
   const moversTool = findTool(tools, "get_market_movers");
   const chainTool = findTool(tools, "get_option_chain");
 
-  const tickers = moversTool ? await getMoverTickers(moversTool) : ["SPY", "QQQ", "AAPL"];
+  const tickers = moversTool ? await getMoverTickers(moversTool) : FALLBACK_TICKERS;
 
   const chainSummaries = await Promise.all(
     tickers.map(async (ticker) => {
@@ -27,9 +29,15 @@ export async function screenCandidates(): Promise<{ tickers: string[]; marketDat
 }
 
 async function getMoverTickers(moversTool: McpTool): Promise<string[]> {
-  const raw = await moversTool.invoke({});
-  const { data } = parseAlpacaToolResult<MarketMoversData>(raw);
-  return [...data.gainers, ...data.losers].map((m) => m.symbol).slice(0, 6);
+  try {
+    const raw = await moversTool.invoke({});
+    const { data } = parseAlpacaToolResult<MarketMoversData>(raw);
+    const tickers = [...data.gainers, ...data.losers].map((m) => m.symbol).slice(0, 6);
+    return tickers.length > 0 ? tickers : FALLBACK_TICKERS;
+  } catch (err) {
+    console.warn("[screener] get_market_movers failed, using fallback basket:", err);
+    return FALLBACK_TICKERS;
+  }
 }
 
 // function summarizeChain(data: OptionChainData): string {
