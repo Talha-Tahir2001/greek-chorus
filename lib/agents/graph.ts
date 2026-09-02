@@ -16,6 +16,7 @@ import {
   markSessionStatus,
 } from "@/lib/db/queries"
 import { mapWithLimit } from "../utils/concurrency"
+import { withTimeout } from "../utils/timeout"
 
 const personas = [premiumSeller, volatilityHunter, contrarian]
 
@@ -34,7 +35,13 @@ function majorityDecision(
 }
 
 async function screenerNode(): Promise<Partial<GraphStateType>> {
-  const { tickers, marketData } = await screenCandidates()
+  console.log("[graph] screener: start")
+  const { tickers, marketData } = await withTimeout(
+    screenCandidates(),
+    60_000,
+    "screener"
+  )
+  console.log("[graph] screener: done", tickers)
   return { tickersScreened: tickers, marketData }
 }
 
@@ -82,8 +89,17 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
 async function committeeNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
-  const proposals = await mapWithLimit(personas, 1, (propose) =>
-    propose({ tickers: state.tickersScreened, marketData: state.marketData })
+  console.log("[graph] committee: start")
+  const proposals = await withTimeout(
+    mapWithLimit(personas, 1, (propose) =>
+      propose({ tickers: state.tickersScreened, marketData: state.marketData })
+    ),
+    90_000,
+    "committee"
+  )
+  console.log(
+    "[graph] committee: done",
+    proposals.map((p) => p.persona)
   )
   return {
     proposals,
@@ -123,8 +139,10 @@ async function committeeNode(
 async function riskGateNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
+  console.log("[graph] risk gate: start")
   const majority = majorityDecision(state.proposals)
   if (!majority) {
+    console.log("[graph] risk gate: no majority")
     return {
       riskGate: {
         verdict: "rejected",
@@ -133,12 +151,27 @@ async function riskGateNode(
       finalTicker: null,
     }
   }
-  const { equity, openPositionsCount } = await getAccountState()
-  const verdict = await runRiskGate({
-    proposal: majority.group[0],
-    openPositionsCount,
-    equity,
+  const { equity, openPositionsCount } = await withTimeout(
+    getAccountState(),
+    15_000,
+    "risk-gate account state"
+  )
+
+  const verdict = await withTimeout(
+    runRiskGate({
+      proposal: majority.group[0],
+      openPositionsCount,
+      equity,
+    }),
+    60_000,
+    "risk-gate LLM"
+  )
+
+  console.log("[graph] risk gate: done", {
+    verdict: verdict.verdict,
+    ticker: majority.ticker,
   })
+
   return {
     riskGate: verdict,
     finalTicker: verdict.verdict === "rejected" ? null : majority.ticker,
@@ -148,29 +181,63 @@ async function riskGateNode(
 async function executionNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
+  console.log("[graph] execution: start")
   const winningProposal =
     state.proposals.find((p) => p.ticker === state.finalTicker) ?? null
-  const result = await executeDecision({
-    finalTicker: state.finalTicker,
-    riskGate: state.riskGate!,
-    proposal: winningProposal,
-  })
-
-  await logPersonaMessages(state.sessionId, state.personaMessages)
-  await logDecision({
-    sessionId: state.sessionId,
-    ticker: state.finalTicker ?? "NONE",
+  const result = await withTimeout(
+    executeDecision({
+      finalTicker: state.finalTicker,
+      riskGate: state.riskGate!,
+      proposal: winningProposal,
+    }),
+    45_000,
+    "execution"
+  )
+  console.log("[graph] execution: order done", {
     action: result.action,
-    legs: winningProposal?.proposedLegs,
-    riskGate: state.riskGate!,
     alpacaOrderId: result.alpacaOrderId,
   })
-  const { equity, buyingPower } = await getAccountState()
-  await logEquitySnapshot(state.sessionId, equity, buyingPower)
-  await markSessionStatus(
-    state.sessionId,
-    result.action === "open" ? "executed" : "skipped"
+
+  await withTimeout(
+    logPersonaMessages(state.sessionId, state.personaMessages),
+    10_000,
+    "log persona messages"
   )
+
+  await withTimeout(
+    logDecision({
+      sessionId: state.sessionId,
+      ticker: state.finalTicker ?? "NONE",
+      action: result.action,
+      legs: winningProposal?.proposedLegs,
+      riskGate: state.riskGate!,
+      alpacaOrderId: result.alpacaOrderId,
+    }),
+    10_000,
+    "log decision"
+  )
+  const { equity, buyingPower } = await withTimeout(
+    getAccountState(),
+    15_000,
+    "execution account state"
+  )
+
+  await withTimeout(
+    logEquitySnapshot(state.sessionId, equity, buyingPower),
+    10_000,
+    "log equity snapshot"
+  )
+
+  await withTimeout(
+    markSessionStatus(
+      state.sessionId,
+      result.action === "open" ? "executed" : "skipped"
+    ),
+    10_000,
+    "mark session status"
+  )
+
+  console.log("[graph] execution: done")
 
   return {}
 }
