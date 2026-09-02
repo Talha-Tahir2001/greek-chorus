@@ -58,6 +58,14 @@ async function main() {
       JSON.stringify(orderTool.schema, null, 2)
     )
   }
+  const moversTool = tools.find((t) => t.name === "get_market_movers")
+  if (moversTool) {
+    // const raw = await moversTool.invoke({})
+    console.log(
+      "\nRaw get_market_movers result:\n",
+      JSON.stringify(moversTool.schema, null, 2)
+    )
+  }
 }
 
 main().catch((err) => {
