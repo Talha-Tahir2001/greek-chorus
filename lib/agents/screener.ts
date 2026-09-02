@@ -19,9 +19,14 @@ export async function screenCandidates(): Promise<{ tickers: string[]; marketDat
   const chainSummaries = await Promise.all(
     tickers.map(async (ticker) => {
       if (!chainTool) return `${ticker}: no chain tool available`;
-      const raw = await chainTool.invoke({ underlying_symbol: ticker });
-      const { data } = parseAlpacaToolResult<OptionChainData>(raw);
-      return `${ticker}: ${summarizeChain(data)}`;
+       try {
+        const raw = await chainTool.invoke({ underlying_symbol: ticker });
+        const { data } = parseAlpacaToolResult<OptionChainData>(raw);
+        return `${ticker}: ${summarizeChain(data)}`;
+      } catch (err) {
+        console.warn(`[screener] get_option_chain failed for ${ticker}:`, err);
+        return `${ticker}: chain lookup failed, skip`;
+      }
     })
   );
 
