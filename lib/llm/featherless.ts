@@ -5,7 +5,7 @@ export function createFeatherlessModel(model: string, temperature = 0.4) {
   return new ChatOpenAI({
     model,
     temperature,
-    apiKey: process.env.FEATHERLESS_API_KEY,
+    apiKey: process.env.FEATHERLESS_AI_API_KEY,
     configuration: { baseURL: "https://api.featherless.ai/v1" },
   })
 }
