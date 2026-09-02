@@ -15,6 +15,7 @@ import {
   logEquitySnapshot,
   markSessionStatus,
 } from "@/lib/db/queries"
+import { mapWithLimit } from "../utils/concurrency"
 
 const personas = [premiumSeller, volatilityHunter, contrarian]
 
@@ -56,17 +57,34 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
 //   }
 // }
 
+// async function committeeNode(
+//   state: GraphStateType
+// ): Promise<Partial<GraphStateType>> {
+//   const proposals: (PersonaProposal & { persona: string })[] = []
+//   for (const propose of personas) {
+//     const result = await propose({
+//       tickers: state.tickersScreened,
+//       marketData: state.marketData,
+//     })
+//     proposals.push(result)
+//   }
+//   return {
+//     proposals,
+//     personaMessages: proposals.map((p) => ({
+//       persona: p.persona,
+//       content: p.rationale,
+//       stance: p.stance,
+//       proposedTicker: p.ticker,
+//     })),
+//   }
+// }
+
 async function committeeNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
-  const proposals: (PersonaProposal & { persona: string })[] = []
-  for (const propose of personas) {
-    const result = await propose({
-      tickers: state.tickersScreened,
-      marketData: state.marketData,
-    })
-    proposals.push(result)
-  }
+  const proposals = await mapWithLimit(personas, 2, (propose) =>
+    propose({ tickers: state.tickersScreened, marketData: state.marketData })
+  )
   return {
     proposals,
     personaMessages: proposals.map((p) => ({
