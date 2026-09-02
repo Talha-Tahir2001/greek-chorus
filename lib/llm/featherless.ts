@@ -16,7 +16,7 @@ export function createFeatherlessModel(model: string, temperature = 0.4) {
 // a model documented for native tool/function calling (the Qwen3 family is
 // one confirmed example) since these agents use structured output.
 export const PERSONA_MODELS = {
-  premiumSeller: "Qwen/Qwen2.5-72B-Instruct",
-  volatilityHunter: "deepseek-ai/DeepSeek-V3",
-  contrarian: "moonshotai/Kimi-K2-Instruct",
+  premiumSeller: "Qwen/Qwen3.5-4B",
+  volatilityHunter: "deepseek-ai/DeepSeek-V4-Flash",
+  contrarian: "moonshotai/Kimi-K2.5",
 } as const
