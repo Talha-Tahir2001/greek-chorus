@@ -86,24 +86,78 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
 //   }
 // }
 
+
+// async function committeeNode(
+//   state: GraphStateType
+// ): Promise<Partial<GraphStateType>> {
+//   console.log("[graph] committee: start")
+//   const proposals = await withTimeout(
+//     mapWithLimit(personas, 2, (propose) =>
+//       propose({ tickers: state.tickersScreened, marketData: state.marketData })
+//     ),
+//     90_000,
+//     "committee"
+//   )
+//   console.log(
+//     "[graph] committee: done",
+//     proposals.map((p) => p.persona)
+//   )
+//   return {
+//     proposals,
+//     personaMessages: proposals.map((p) => ({
+//       persona: p.persona,
+//       content: p.rationale,
+//       stance: p.stance,
+//       proposedTicker: p.ticker,
+//     })),
+//   }
+// }
+
 async function committeeNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
   console.log("[graph] committee: start")
-  const proposals = await withTimeout(
-    mapWithLimit(personas, 1, (propose) =>
-      propose({ tickers: state.tickersScreened, marketData: state.marketData })
-    ),
-    90_000,
-    "committee"
+
+  const proposals = await mapWithLimit(personas, 2, async (propose) => {
+    const started = Date.now()
+
+    try {
+      const proposal = await withTimeout(
+        propose({
+          tickers: state.tickersScreened,
+          marketData: state.marketData,
+        }),
+        45_000,
+        `persona ${propose.name ?? "unknown"}`
+      )
+
+      console.log(
+        `[graph] persona ${proposal.persona}: done ${Date.now() - started}ms`
+      )
+
+      return proposal
+    } catch (error) {
+      console.error(
+        `[graph] persona ${propose.name ?? "unknown"} failed:`,
+        error
+      )
+
+      return null
+    }
+  })
+
+  const successfulProposals = proposals.filter(
+    (p): p is NonNullable<typeof p> => p !== null
   )
+
   console.log(
     "[graph] committee: done",
-    proposals.map((p) => p.persona)
+    successfulProposals.map((p) => p.persona)
   )
+
   return {
-    proposals,
-    personaMessages: proposals.map((p) => ({
+    proposals: successfulProposals,
+    personaMessages: successfulProposals.map((p) => ({
       persona: p.persona,
       content: p.rationale,
       stance: p.stance,
