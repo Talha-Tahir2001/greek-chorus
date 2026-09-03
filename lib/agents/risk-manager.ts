@@ -1,12 +1,18 @@
 // Path: lib/agents/risk-manager.ts
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { createFeatherlessModel } from "@/lib/llm/featherless";
+// import { createFeatherlessModel } from "@/lib/llm/featherless";
 import { RiskGateSchema, type RiskGateResult, type PersonaProposal } from "@/lib/agents/schemas";
+import { createAIMLModel } from "../llm/aiml-client";
 
 const MAX_CONCURRENT_POSITIONS = 5;
 const MAX_POSITION_PCT_OF_EQUITY = 0.05;
 
-const llm = createFeatherlessModel("Qwen/Qwen2.5-72B-Instruct", 0.1).withStructuredOutput(
+// const llm = createFeatherlessModel("Qwen/Qwen2.5-72B-Instruct", 0.1).withStructuredOutput(
+//   RiskGateSchema,
+//   { name: "risk_gate_result" }
+// );
+
+const llm = createAIMLModel("alibaba/qwen3.6-27b", 0.1).withStructuredOutput(
   RiskGateSchema,
   { name: "risk_gate_result" }
 );

@@ -2,11 +2,17 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { createFeatherlessModel } from "@/lib/llm/featherless";
 import { PersonaProposalSchema, type PersonaProposal } from "@/lib/agents/schemas";
+import { createAIMLModel } from "@/lib/llm/aiml-client";
 
 export function createPersona(config: { name: string; model: string; systemPrompt: string }) {
-  const llm = createFeatherlessModel(config.model).withStructuredOutput(PersonaProposalSchema, {
-    name: "persona_proposal",
-  });
+  // const llm = createFeatherlessModel(config.model).withStructuredOutput(PersonaProposalSchema, {
+  //   name: "persona_proposal",
+  // });
+
+  const llm = createAIMLModel(config.model).withStructuredOutput(PersonaProposalSchema, 
+    { name: "persona_proposal" }
+  );
+    
 
   return async function propose(context: {
     tickers: string[];
