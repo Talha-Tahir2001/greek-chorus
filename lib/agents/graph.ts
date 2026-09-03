@@ -114,39 +114,101 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
 // }
 
 
+//----------------------------------------
+// async function committeeNode(
+//   state: GraphStateType
+// ): Promise<Partial<GraphStateType>> {
+//   console.log("[graph] committee: start")
+
+//   const proposals = await mapWithLimit(personas, 1, async (propose) => {
+//     const started = Date.now()
+
+//     try {
+//       const proposal = await withTimeout(
+//         propose({
+//           tickers: state.tickersScreened,
+//           marketData: state.marketData,
+//         }),
+//         240_000,
+//         `persona ${propose.name ?? "unknown"}`
+//       )
+
+//       console.log(
+//         `[graph] persona ${proposal.persona}: done ${Date.now() - started}ms`
+//       )
+
+//       return proposal
+//     } catch (error) {
+//       console.error(
+//         `[graph] persona ${propose.name ?? "unknown"} failed:`,
+//         error
+//       )
+
+//       return null
+//     }
+//   })
+
+//   const successfulProposals = proposals.filter(
+//     (p): p is NonNullable<typeof p> => p !== null
+//   )
+
+//   console.log(
+//     "[graph] committee: done",
+//     successfulProposals.map((p) => p.persona)
+//   )
+
+//   return {
+//     proposals: successfulProposals,
+//     personaMessages: successfulProposals.map((p) => ({
+//       persona: p.persona,
+//       content: p.rationale,
+//       stance: p.stance,
+//       proposedTicker: p.ticker,
+//     })),
+//   }
+// }
+//--------------------------------------
 
 async function committeeNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
   console.log("[graph] committee: start")
 
-  const proposals = await mapWithLimit(personas, 1, async (propose) => {
-    const started = Date.now()
+  const proposals = await withTimeout(
+    mapWithLimit(personas, 1, async (propose) => {
+      const started = Date.now()
 
-    try {
-      const proposal = await withTimeout(
-        propose({
-          tickers: state.tickersScreened,
-          marketData: state.marketData,
-        }),
-        25_000,
-        `persona ${propose.name ?? "unknown"}`
-      )
+      try {
+        const proposal = await withTimeout(
+          propose({
+            tickers: state.tickersScreened,
+            marketData: state.marketData,
+          }),
+          75_000,
+          `persona ${propose.name ?? "unknown"}`
+        )
 
-      console.log(
-        `[graph] persona ${proposal.persona}: done ${Date.now() - started}ms`
-      )
+        console.log(
+          `[graph] persona ${proposal.persona}: done ${
+            Date.now() - started
+          }ms`
+        )
 
-      return proposal
-    } catch (error) {
-      console.error(
-        `[graph] persona ${propose.name ?? "unknown"} failed:`,
-        error
-      )
+        return proposal
+      } catch (error) {
+        console.error(
+          `[graph] persona ${propose.name ?? "unknown"} failed after ${
+            Date.now() - started
+          }ms:`,
+          error
+        )
 
-      return null
-    }
-  })
+        return null
+      }
+    }),
+    240_000,
+    "committee"
+  )
 
   const successfulProposals = proposals.filter(
     (p): p is NonNullable<typeof p> => p !== null
@@ -167,6 +229,7 @@ async function committeeNode(
     })),
   }
 }
+
 
 // async function committeeNode(state: GraphStateType): Promise<Partial<GraphStateType>> {
 //   console.log("[graph] committee: start");
