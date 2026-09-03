@@ -18,7 +18,12 @@ import {
 import { mapWithLimit } from "../utils/concurrency"
 import { withTimeout } from "../utils/timeout"
 
-const personas = [premiumSeller, volatilityHunter, contrarian]
+// const personas = [premiumSeller, volatilityHunter, contrarian]
+const personas = [
+  { name: "Premium Seller", propose: premiumSeller },
+  { name: "Volatility Hunter", propose: volatilityHunter },
+  { name: "Contrarian", propose: contrarian },
+]
 
 function majorityDecision(
   proposals: (PersonaProposal & { persona: string })[]
@@ -86,7 +91,6 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
 //   }
 // }
 
-
 // async function committeeNode(
 //   state: GraphStateType
 // ): Promise<Partial<GraphStateType>> {
@@ -112,7 +116,6 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
 //     })),
 //   }
 // }
-
 
 //----------------------------------------
 // async function committeeNode(
@@ -175,7 +178,7 @@ async function committeeNode(
   console.log("[graph] committee: start")
 
   const proposals = await withTimeout(
-    mapWithLimit(personas, 1, async (propose) => {
+    mapWithLimit(personas, 1, async ({ name, propose }) => {
       const started = Date.now()
 
       try {
@@ -185,21 +188,15 @@ async function committeeNode(
             marketData: state.marketData,
           }),
           75_000,
-          `persona ${propose.name ?? "unknown"}`
+          `persona ${name}`
         )
 
-        console.log(
-          `[graph] persona ${proposal.persona}: done ${
-            Date.now() - started
-          }ms`
-        )
+        console.log(`[graph] persona ${name}: done ${Date.now() - started}ms`)
 
         return proposal
       } catch (error) {
         console.error(
-          `[graph] persona ${propose.name ?? "unknown"} failed after ${
-            Date.now() - started
-          }ms:`,
+          `[graph] persona ${name} failed after ${Date.now() - started}ms:`,
           error
         )
 
@@ -229,7 +226,6 @@ async function committeeNode(
     })),
   }
 }
-
 
 // async function committeeNode(state: GraphStateType): Promise<Partial<GraphStateType>> {
 //   console.log("[graph] committee: start");
