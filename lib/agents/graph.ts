@@ -129,7 +129,7 @@ async function committeeNode(
           tickers: state.tickersScreened,
           marketData: state.marketData,
         }),
-        75_000,
+        25_000,
         `persona ${propose.name ?? "unknown"}`
       )
 
