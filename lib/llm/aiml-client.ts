@@ -10,8 +10,11 @@ export function createAIMLModel(model: string, temperature = 0.4) {
   })
 }
 export const AIML_PERSONA_MODELS = {
-  premiumSeller: "alibaba/qwen3.6-27b",
-  volatilityHunter: "deepseek/deepseek-v4-flash",
+  //   premiumSeller: "alibaba/qwen3.6-27b",
+  //   volatilityHunter: "deepseek/deepseek-v4-flash",
   //   contrarian: "moonshot/kimi-k2-5",
+  //   contrarian: "deepseek/deepseek-v4-flash",
+  premiumSeller: "deepseek/deepseek-v4-flash",
+  volatilityHunter: "deepseek/deepseek-v4-flash",
   contrarian: "deepseek/deepseek-v4-flash",
 } as const
