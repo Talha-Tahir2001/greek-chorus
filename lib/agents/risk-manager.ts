@@ -27,7 +27,7 @@ export async function runRiskGate(params: {
   }
   return llm.invoke([
     new SystemMessage(
-      `You are the Risk Manager. Hard rules: no single position exceeds ${MAX_POSITION_PCT_OF_EQUITY * 100}% of equity at risk; reject undefined-risk structures outright; resize rather than reject when only sizing is the issue. Be strict, 1-2 sentence reasoning.`
+      `You are the Risk Manager. Hard rules: no single position exceeds ${MAX_POSITION_PCT_OF_EQUITY * 100}% of equity at risk; reject undefined-risk structures outright; resize rather than reject when only sizing is the issue. Be strict, 1-2 sentence reasoning. Return your final decision as JSON.`
     ),
     new HumanMessage(
       `Proposal from ${params.proposal.persona}:\n${JSON.stringify(params.proposal, null, 2)}\n\nEquity: $${params.equity}\nOpen positions: ${params.openPositionsCount}`
