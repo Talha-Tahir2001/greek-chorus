@@ -1,5 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai"
-
+import { contrarian } from "../agents/personas/contrarian"
 
 export function createAIMLModel(model: string, temperature = 0.4) {
   return new ChatOpenAI({
@@ -13,5 +13,6 @@ export function createAIMLModel(model: string, temperature = 0.4) {
 export const AIML_PERSONA_MODELS = {
   premiumSeller: "alibaba/qwen3.6-27b",
   volatilityHunter: "deepseek/deepseek-v4-flash",
-  contrarian: "moonshot/kimi-k2-5",
+  //   contrarian: "moonshot/kimi-k2-5",
+  contrarian: "deepseek/deepseek-v4-flash",
 } as const
