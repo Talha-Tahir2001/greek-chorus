@@ -7,7 +7,7 @@ export function createAIMLModel(model: string, temperature = 0.4) {
     temperature,
     maxRetries: 3,
     apiKey: process.env.AIML_API_KEY,
-    configuration: { baseURL: "https://api.aimlapi.com/v1", timeout: 25_000 },
+    configuration: { baseURL: "https://api.aimlapi.com/v1", timeout: 60_000 },
   })
 }
 export const AIML_PERSONA_MODELS = {

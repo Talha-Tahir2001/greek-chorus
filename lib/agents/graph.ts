@@ -115,83 +115,83 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
 
 
 
-// async function committeeNode(
-//   state: GraphStateType
-// ): Promise<Partial<GraphStateType>> {
-//   console.log("[graph] committee: start")
+async function committeeNode(
+  state: GraphStateType
+): Promise<Partial<GraphStateType>> {
+  console.log("[graph] committee: start")
 
-//   const proposals = await mapWithLimit(personas, 1, async (propose) => {
-//     const started = Date.now()
+  const proposals = await mapWithLimit(personas, 1, async (propose) => {
+    const started = Date.now()
 
-//     try {
-//       const proposal = await withTimeout(
-//         propose({
-//           tickers: state.tickersScreened,
-//           marketData: state.marketData,
-//         }),
-//         45_000,
-//         `persona ${propose.name ?? "unknown"}`
-//       )
-
-//       console.log(
-//         `[graph] persona ${proposal.persona}: done ${Date.now() - started}ms`
-//       )
-
-//       return proposal
-//     } catch (error) {
-//       console.error(
-//         `[graph] persona ${propose.name ?? "unknown"} failed:`,
-//         error
-//       )
-
-//       return null
-//     }
-//   })
-
-//   const successfulProposals = proposals.filter(
-//     (p): p is NonNullable<typeof p> => p !== null
-//   )
-
-//   console.log(
-//     "[graph] committee: done",
-//     successfulProposals.map((p) => p.persona)
-//   )
-
-//   return {
-//     proposals: successfulProposals,
-//     personaMessages: successfulProposals.map((p) => ({
-//       persona: p.persona,
-//       content: p.rationale,
-//       stance: p.stance,
-//       proposedTicker: p.ticker,
-//     })),
-//   }
-// }
-
-async function committeeNode(state: GraphStateType): Promise<Partial<GraphStateType>> {
-  console.log("[graph] committee: start");
-  const proposals: (PersonaProposal & { persona: string })[] = [];
-
-  for (const propose of personas) {
     try {
-      const result = await withTimeout(
-        propose({ tickers: state.tickersScreened, marketData: state.marketData }),
-        30_000,
-        "persona"
-      );
-      proposals.push(result);
-      console.log(`[graph] committee: ${result.persona} done — ${result.ticker}`);
-    } catch (err) {
-      console.warn("[graph] committee: a persona failed/timed out, skipping it:", err);
-    }
-  }
+      const proposal = await withTimeout(
+        propose({
+          tickers: state.tickersScreened,
+          marketData: state.marketData,
+        }),
+        75_000,
+        `persona ${propose.name ?? "unknown"}`
+      )
 
-  console.log("[graph] committee: done, proposals:", proposals.length);
+      console.log(
+        `[graph] persona ${proposal.persona}: done ${Date.now() - started}ms`
+      )
+
+      return proposal
+    } catch (error) {
+      console.error(
+        `[graph] persona ${propose.name ?? "unknown"} failed:`,
+        error
+      )
+
+      return null
+    }
+  })
+
+  const successfulProposals = proposals.filter(
+    (p): p is NonNullable<typeof p> => p !== null
+  )
+
+  console.log(
+    "[graph] committee: done",
+    successfulProposals.map((p) => p.persona)
+  )
+
   return {
-    proposals,
-    personaMessages: proposals.map((p) => ({ persona: p.persona, content: p.rationale, stance: p.stance, proposedTicker: p.ticker })),
-  };
+    proposals: successfulProposals,
+    personaMessages: successfulProposals.map((p) => ({
+      persona: p.persona,
+      content: p.rationale,
+      stance: p.stance,
+      proposedTicker: p.ticker,
+    })),
+  }
 }
+
+// async function committeeNode(state: GraphStateType): Promise<Partial<GraphStateType>> {
+//   console.log("[graph] committee: start");
+//   const proposals: (PersonaProposal & { persona: string })[] = [];
+
+//   for (const propose of personas) {
+//     try {
+//       const result = await withTimeout(
+//         propose({ tickers: state.tickersScreened, marketData: state.marketData }),
+//         30_000,
+//         "persona"
+//       );
+//       proposals.push(result);
+//       console.log(`[graph] committee: ${result.persona} done — ${result.ticker}`);
+//     } catch (err) {
+//       console.warn("[graph] committee: a persona failed/timed out, skipping it:", err);
+//     }
+//   }
+
+//   console.log("[graph] committee: done, proposals:", proposals.length);
+//   return {
+//     proposals,
+//     personaMessages: proposals.map((p) => ({ persona: p.persona, content: p.rationale, stance: p.stance, proposedTicker: p.ticker })),
+//   };
+// }
 
 // async function riskGateNode(
 //   state: GraphStateType
