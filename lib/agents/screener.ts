@@ -39,20 +39,21 @@ export async function screenCandidates(): Promise<{
 }
 
 async function getMoverTickers(moversTool: McpTool): Promise<string[]> {
-  try {
-    const raw = await moversTool.invoke({ market_type: "stocks", top: 5 })
-    const { data } = parseAlpacaToolResult<MarketMoversData>(raw)
-    const tickers = [...data.gainers, ...data.losers]
-      .map((m) => m.symbol)
-      .slice(0, 6)
-    return tickers.length > 0 ? tickers : FALLBACK_TICKERS
-  } catch (err) {
-    console.warn(
-      "[screener] get_market_movers failed, using fallback basket:",
-      err
-    )
-    return FALLBACK_TICKERS
-  }
+  // try {
+  //   const raw = await moversTool.invoke({ market_type: "stocks", top: 5 })
+  //   const { data } = parseAlpacaToolResult<MarketMoversData>(raw)
+  //   const tickers = [...data.gainers, ...data.losers]
+  //     .map((m) => m.symbol)
+  //     .slice(0, 6)
+  //   return tickers.length > 0 ? tickers : FALLBACK_TICKERS
+  // } catch (err) {
+  //   console.warn(
+  //     "[screener] get_market_movers failed, using fallback basket:",
+  //     err
+  //   )
+  //   return FALLBACK_TICKERS
+  // }
+  return FALLBACK_TICKERS;
 }
 
 // function summarizeChain(data: OptionChainData): string {
