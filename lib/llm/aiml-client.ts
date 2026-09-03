@@ -1,5 +1,4 @@
 import { ChatOpenAI } from "@langchain/openai"
-import { contrarian } from "../agents/personas/contrarian"
 
 export function createAIMLModel(model: string, temperature = 0.4) {
   return new ChatOpenAI({
