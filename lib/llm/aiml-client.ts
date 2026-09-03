@@ -4,7 +4,7 @@ export function createAIMLModel(model: string, temperature = 0.4) {
   return new ChatOpenAI({
     model,
     temperature,
-    maxRetries: 3,
+    maxRetries: 0,
     apiKey: process.env.AIML_API_KEY,
     configuration: { baseURL: "https://api.aimlapi.com/v1", timeout: 60_000 },
   })
