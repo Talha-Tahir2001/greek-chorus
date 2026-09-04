@@ -348,7 +348,7 @@ async function executionNode(
     logDecision({
       sessionId: state.sessionId,
       ticker: state.finalTicker ?? "NONE",
-      action: result.action,
+      action: result.action === "open" ? "open" : "skip",
       legs: winningProposal?.proposedLegs,
       riskGate: state.riskGate!,
       alpacaOrderId: result.alpacaOrderId,
