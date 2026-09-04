@@ -14,7 +14,7 @@ export const PersonaProposalSchema = z.object({
         expiration: z.string().describe("YYYY-MM-DD"),
       })
     )
-    .optional(),
+    // .optional(),
 })
 export type PersonaProposal = z.infer<typeof PersonaProposalSchema>
 
