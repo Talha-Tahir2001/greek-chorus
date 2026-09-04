@@ -9,33 +9,124 @@ function findTool(tools: McpTool[], name: string): McpTool | undefined {
   return tools.find((t) => t.name === name)
 }
 
+// export async function screenCandidates(): Promise<{
+//   tickers: string[]
+//   marketData: string
+// }> {
+//   const tools = await getAlpacaMcpTools()
+//   const moversTool = findTool(tools, "get_market_movers")
+//   const chainTool = findTool(tools, "get_option_chain")
+
+//   const tickers = moversTool
+//     ? await getMoverTickers(moversTool)
+//     : FALLBACK_TICKERS
+
+//   if (!chainTool) {
+//     return {
+//       tickers: FALLBACK_TICKERS,
+//       marketData: "No option chain tool available",
+//     }
+//   }
+
+//   const chainSummaries = await Promise.all(
+//     tickers.map(async (ticker) => {
+//       if (!chainTool) return `${ticker}: no chain tool available`
+//       try {
+//         const raw = await chainTool.invoke({ underlying_symbol: ticker })
+//         const { data } = parseAlpacaToolResult<OptionChainData>(raw)
+//         return `${ticker}: ${summarizeChain(data)}`
+//       } catch (err) {
+//         console.warn(`[screener] get_option_chain failed for ${ticker}:`, err)
+//         return `${ticker}: chain lookup failed, skip`
+//       }
+//     })
+//   )
+
+//   return { tickers, marketData: chainSummaries.join("\n") }
+// }
+
 export async function screenCandidates(): Promise<{
   tickers: string[]
   marketData: string
 }> {
   const tools = await getAlpacaMcpTools()
+
   const moversTool = findTool(tools, "get_market_movers")
   const chainTool = findTool(tools, "get_option_chain")
 
-  const tickers = moversTool
+  const candidateTickers = moversTool
     ? await getMoverTickers(moversTool)
     : FALLBACK_TICKERS
 
-  const chainSummaries = await Promise.all(
-    tickers.map(async (ticker) => {
-      if (!chainTool) return `${ticker}: no chain tool available`
+  if (!chainTool) {
+    return {
+      tickers: FALLBACK_TICKERS,
+      marketData: "No option chain tool available",
+    }
+  }
+
+  const validCandidates = await Promise.all(
+    candidateTickers.map(async (ticker) => {
       try {
-        const raw = await chainTool.invoke({ underlying_symbol: ticker })
-        const { data } = parseAlpacaToolResult<OptionChainData>(raw)
-        return `${ticker}: ${summarizeChain(data)}`
+        const raw = await chainTool.invoke({
+          underlying_symbol: ticker,
+        })
+
+        const { data } =
+          parseAlpacaToolResult<OptionChainData>(raw)
+
+        const summary = summarizeChain(data)
+
+        if (!summary) {
+          console.warn(
+            `[screener] skipping ${ticker}: no usable option chain`
+          )
+          return null
+        }
+
+        return {
+          ticker,
+          summary,
+        }
       } catch (err) {
-        console.warn(`[screener] get_option_chain failed for ${ticker}:`, err)
-        return `${ticker}: chain lookup failed, skip`
+        console.warn(
+          `[screener] skipping non-optionable mover ${ticker}:`,
+          err
+        )
+
+        return null
       }
     })
   )
 
-  return { tickers, marketData: chainSummaries.join("\n") }
+  const valid = validCandidates.filter(
+    (candidate): candidate is { ticker: string; summary: string } =>
+      candidate !== null
+  )
+
+  const tickers = valid.map((candidate) => candidate.ticker)
+
+  const marketData = valid
+    .map((candidate) => `${candidate.ticker}: ${candidate.summary}`)
+    .join("\n")
+
+  if (tickers.length === 0) {
+    console.warn(
+      "[screener] no valid optionable movers, using fallback basket"
+    )
+
+    return {
+      tickers: FALLBACK_TICKERS,
+      marketData: "Using fallback basket",
+    }
+  }
+
+  console.log("[screener] optionable market movers:", tickers)
+
+  return {
+    tickers,
+    marketData,
+  }
 }
 
 async function getMoverTickers(moversTool: McpTool): Promise<string[]> {
@@ -67,16 +158,6 @@ async function getMoverTickers(moversTool: McpTool): Promise<string[]> {
   // return FALLBACK_TICKERS;
 }
 
-// function summarizeChain(data: OptionChainData): string {
-//   return Object.entries(data.snapshots)
-//     .slice(0, 5)
-//     .map(([symbol, snap]) => {
-//       const price = snap.latestQuote ? `bid ${snap.latestQuote.bp}/ask ${snap.latestQuote.ap}` : "no quote";
-//       const iv = snap.impliedVolatility !== undefined ? `IV ${(snap.impliedVolatility * 100).toFixed(1)}%` : "IV n/a";
-//       return `${symbol}: ${price}, ${iv}`;
-//     })
-//     .join(" | ");
-// }
 
 function summarizeChain(data: OptionChainData): string {
   const liquid = Object.entries(data.snapshots).filter(
