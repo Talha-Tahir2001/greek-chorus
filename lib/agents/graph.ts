@@ -25,6 +25,20 @@ const personas = [
   { name: "Contrarian", propose: contrarian },
 ]
 
+// function majorityDecision(
+//   proposals: (PersonaProposal & { persona: string })[]
+// ) {
+//   const active = proposals.filter((p) => p.ticker !== "NONE")
+//   if (active.length < 2) return null
+//   const byTicker = new Map<string, (PersonaProposal & { persona: string })[]>()
+//   for (const p of active)
+//     byTicker.set(p.ticker, [...(byTicker.get(p.ticker) ?? []), p])
+//   const [ticker, group] = [...byTicker.entries()].sort(
+//     (a, b) => b[1].length - a[1].length
+//   )[0]
+//   return group.length >= 2 ? { ticker, group } : null
+// }
+
 function majorityDecision(
   proposals: (PersonaProposal & { persona: string })[]
 ) {
@@ -36,7 +50,9 @@ function majorityDecision(
   const [ticker, group] = [...byTicker.entries()].sort(
     (a, b) => b[1].length - a[1].length
   )[0]
-  return group.length >= 2 ? { ticker, group } : null
+  if (group.length < 2) return null
+  const withLegs = group.find((p) => p.proposedLegs?.length) ?? group[0]
+  return { ticker, group, representative: withLegs }
 }
 
 async function screenerNode(): Promise<Partial<GraphStateType>> {
@@ -49,129 +65,6 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
   console.log("[graph] screener: done", tickers)
   return { tickersScreened: tickers, marketData }
 }
-
-// async function committeeNode(
-//   state: GraphStateType
-// ): Promise<Partial<GraphStateType>> {
-//   const proposals = await Promise.all(
-//     personas.map((propose) =>
-//       propose({ tickers: state.tickersScreened, marketData: state.marketData })
-//     )
-//   )
-//   return {
-//     proposals,
-//     personaMessages: proposals.map((p) => ({
-//       persona: p.persona,
-//       content: p.rationale,
-//       stance: p.stance,
-//       proposedTicker: p.ticker,
-//     })),
-//   }
-// }
-
-// async function committeeNode(
-//   state: GraphStateType
-// ): Promise<Partial<GraphStateType>> {
-//   const proposals: (PersonaProposal & { persona: string })[] = []
-//   for (const propose of personas) {
-//     const result = await propose({
-//       tickers: state.tickersScreened,
-//       marketData: state.marketData,
-//     })
-//     proposals.push(result)
-//   }
-//   return {
-//     proposals,
-//     personaMessages: proposals.map((p) => ({
-//       persona: p.persona,
-//       content: p.rationale,
-//       stance: p.stance,
-//       proposedTicker: p.ticker,
-//     })),
-//   }
-// }
-
-// async function committeeNode(
-//   state: GraphStateType
-// ): Promise<Partial<GraphStateType>> {
-//   console.log("[graph] committee: start")
-//   const proposals = await withTimeout(
-//     mapWithLimit(personas, 2, (propose) =>
-//       propose({ tickers: state.tickersScreened, marketData: state.marketData })
-//     ),
-//     90_000,
-//     "committee"
-//   )
-//   console.log(
-//     "[graph] committee: done",
-//     proposals.map((p) => p.persona)
-//   )
-//   return {
-//     proposals,
-//     personaMessages: proposals.map((p) => ({
-//       persona: p.persona,
-//       content: p.rationale,
-//       stance: p.stance,
-//       proposedTicker: p.ticker,
-//     })),
-//   }
-// }
-
-//----------------------------------------
-// async function committeeNode(
-//   state: GraphStateType
-// ): Promise<Partial<GraphStateType>> {
-//   console.log("[graph] committee: start")
-
-//   const proposals = await mapWithLimit(personas, 1, async (propose) => {
-//     const started = Date.now()
-
-//     try {
-//       const proposal = await withTimeout(
-//         propose({
-//           tickers: state.tickersScreened,
-//           marketData: state.marketData,
-//         }),
-//         240_000,
-//         `persona ${propose.name ?? "unknown"}`
-//       )
-
-//       console.log(
-//         `[graph] persona ${proposal.persona}: done ${Date.now() - started}ms`
-//       )
-
-//       return proposal
-//     } catch (error) {
-//       console.error(
-//         `[graph] persona ${propose.name ?? "unknown"} failed:`,
-//         error
-//       )
-
-//       return null
-//     }
-//   })
-
-//   const successfulProposals = proposals.filter(
-//     (p): p is NonNullable<typeof p> => p !== null
-//   )
-
-//   console.log(
-//     "[graph] committee: done",
-//     successfulProposals.map((p) => p.persona)
-//   )
-
-//   return {
-//     proposals: successfulProposals,
-//     personaMessages: successfulProposals.map((p) => ({
-//       persona: p.persona,
-//       content: p.rationale,
-//       stance: p.stance,
-//       proposedTicker: p.ticker,
-//     })),
-//   }
-// }
-//--------------------------------------
-
 async function committeeNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
