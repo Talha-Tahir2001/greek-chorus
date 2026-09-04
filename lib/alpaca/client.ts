@@ -3,7 +3,7 @@ import { Alpaca } from "@alpacahq/alpaca-trade-api/rest";
 
 let cachedAlpaca: InstanceType<typeof Alpaca> | null = null;
 
-function getAlpaca() {
+export function getAlpaca() {
   if (cachedAlpaca) return cachedAlpaca;
   cachedAlpaca = new Alpaca({
     keyId: process.env.ALPACA_API_KEY!,
