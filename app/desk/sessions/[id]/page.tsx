@@ -108,8 +108,8 @@ export default function SessionDetailPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 space-y-1">
           <Link
             href="/desk"
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -117,7 +117,7 @@ export default function SessionDetailPage() {
             <IconArrowLeft className="size-3" />
             Dashboard
           </Link>
-          <h2 className="font-heading text-lg font-bold">
+          <h2 className="truncate font-heading text-lg font-bold">
             Session — {session.tickersScreened?.join(", ") || "Screening..."}
           </h2>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
