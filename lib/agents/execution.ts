@@ -133,16 +133,21 @@ export async function executeDecision(params: {
   const { data } = parseAlpacaToolResult<OrderResultData>(raw);
 
   if (data.error) {
-    const message =
-      data.error.detail?.message ?? data.error.message;
+  console.warn(
+    `[execution] Order rejected: ${
+      data.error.detail?.message ?? data.error.message
+    }`
+  );
+  console.warn(
+    "[execution] Order rejected:",
+    JSON.stringify(data, null, 2)
+  );
 
-    console.warn(`[execution] Order rejected: ${message}`);
-
-    return { action: "rejected" };
-  }
+  return { action: "rejected" };
+}
 
   return {
     action: "open",
-    alpacaOrderId: data.id ?? "unknown",
+    alpacaOrderId: data.id,
   };
 }
