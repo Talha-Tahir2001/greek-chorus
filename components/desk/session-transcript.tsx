@@ -86,9 +86,9 @@ export function SessionTranscript({ messages, decision }: SessionTranscriptProps
               </div>
 
               {/* Content */}
-              <div className="flex-1 pb-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex size-6 items-center justify-center rounded-none bg-muted text-[10px] font-bold">
+              <div className="min-w-0 flex-1 pb-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded-none bg-muted text-[10px] font-bold">
                     {initials}
                   </div>
                   <span className="text-xs font-semibold">{msg.persona}</span>

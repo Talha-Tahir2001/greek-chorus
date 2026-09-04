@@ -19,6 +19,7 @@ import {
 const navItems = [
   { title: "Dashboard", url: "/desk", icon: IconDashboard },
   { title: "Positions", url: "/desk/positions", icon: IconBriefcase },
+  { title: "Sessions", url: "/desk/sessions", icon: IconMessages },
 ]
 
 interface RecentSession {

@@ -60,10 +60,10 @@ export function SessionFeed({ sessions }: SessionFeedProps) {
               <Link
                 key={session.id}
                 href={`/desk/sessions/${session.id}`}
-                className="flex items-center justify-between rounded-none border p-3 text-xs transition-colors hover:bg-muted/50"
+                className="flex items-center justify-between gap-3 rounded-none border p-3 text-xs transition-colors hover:bg-muted/50"
               >
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">
                       {session.tickersScreened?.join(", ") || "Screening..."}
                     </span>
@@ -77,7 +77,7 @@ export function SessionFeed({ sessions }: SessionFeedProps) {
                     )}
                   </div>
                   {session.latestMessage && (
-                    <p className="truncate text-muted-foreground">{session.latestMessage}</p>
+                    <p className="mt-1 truncate text-muted-foreground">{session.latestMessage}</p>
                   )}
                 </div>
                 <span className="shrink-0 text-muted-foreground">{formatTime(session.createdAt)}</span>
