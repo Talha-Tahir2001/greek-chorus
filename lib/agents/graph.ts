@@ -17,7 +17,7 @@ import {
 } from "@/lib/db/queries"
 import { mapWithLimit } from "../utils/concurrency"
 import { withTimeout } from "../utils/timeout"
-
+import { validateProposalContracts } from "./contract-validator"
 // const personas = [premiumSeller, volatilityHunter, contrarian]
 const personas = [
   { name: "Premium Seller", propose: premiumSeller },
@@ -57,13 +57,13 @@ function majorityDecision(
 
 async function screenerNode(): Promise<Partial<GraphStateType>> {
   console.log("[graph] screener: start")
-  const { tickers, marketData } = await withTimeout(
+  const { tickers, marketData, contractUniverse } = await withTimeout(
     screenCandidates(),
     60_000,
     "screener"
   )
   console.log("[graph] screener: done", tickers)
-  return { tickersScreened: tickers, marketData }
+  return { tickersScreened: tickers, marketData: marketData, contractUniverse: contractUniverse }
 }
 async function committeeNode(
   state: GraphStateType
@@ -79,10 +79,31 @@ async function committeeNode(
           propose({
             tickers: state.tickersScreened,
             marketData: state.marketData,
+            contractUniverse: state.contractUniverse,
           }),
           75_000,
           `persona ${name}`
         )
+
+        const validation = validateProposalContracts(
+          proposal,
+          state.contractUniverse
+        )
+        if (!validation.valid) {
+          console.warn(
+            `[${name}] invalid contract proposal:`,
+            validation.reason
+          )
+
+          return {
+            ...proposal,
+            ticker: "NONE",
+            proposedLegs: [],
+            rationale:
+              `${proposal.rationale} ` +
+              `Proposal rejected because: ${validation.reason}`,
+          }
+        }
 
         console.log(`[graph] persona ${name}: done ${Date.now() - started}ms`)
 
@@ -119,7 +140,6 @@ async function committeeNode(
     })),
   }
 }
-
 
 async function riskGateNode(
   state: GraphStateType
