@@ -13,6 +13,21 @@ export interface RiskGateOutcome {
   reasoning: string
 }
 
+export interface ContractQuote {
+  symbol: string
+  ticker: string
+  expiration: string
+  type: "call" | "put"
+  strike: number
+  bid: number
+  ask: number
+  impliedVolatility: number
+  delta: number
+  gamma: number
+  theta: number
+  vega: number
+}
+
 export const GraphState = Annotation.Root({
   sessionId: Annotation<string>,
   tickersScreened: Annotation<string[]>({
@@ -35,6 +50,10 @@ export const GraphState = Annotation.Root({
   finalTicker: Annotation<string | null>({
     reducer: (_, n) => n,
     default: () => null,
+  }),
+  contractUniverse: Annotation<ContractQuote[]>({
+    reducer: (_, n) => n,
+    default: () => [],
   }),
 })
 
