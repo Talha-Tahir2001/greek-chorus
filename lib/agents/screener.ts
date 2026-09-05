@@ -7,6 +7,7 @@ import type {
   OptionChainData,
   OptionSnapshot,
 } from "@/lib/mcp/alpaca-types"
+import type { ContractQuote } from "./state"
 
 const FALLBACK_TICKERS = ["SPY", "QQQ", "AAPL", "NVDA", "TSLA"]
 
@@ -17,17 +18,14 @@ function findTool(tools: McpTool[], name: string): McpTool | undefined {
   return tools.find((t) => t.name === name)
 }
 
-interface ParsedContract {
-  symbol: string
-  expiration: string
-  type: "call" | "put"
-  strike: number
+interface ParsedContract extends ContractQuote {
   snapshot: OptionSnapshot
 }
 
 export async function screenCandidates(): Promise<{
   tickers: string[]
   marketData: string
+  contractUniverse: ContractQuote[]
 }> {
   const tools = await getAlpacaMcpTools()
 
@@ -38,6 +36,7 @@ export async function screenCandidates(): Promise<{
     return {
       tickers: FALLBACK_TICKERS,
       marketData: "No option chain tool available",
+      contractUniverse: [],
     }
   }
 
@@ -52,10 +51,9 @@ export async function screenCandidates(): Promise<{
           underlying_symbol: ticker,
         })
 
-        const { data } =
-          parseAlpacaToolResult<OptionChainData>(raw)
+        const { data } = parseAlpacaToolResult<OptionChainData>(raw)
 
-        const universe = buildContractUniverse(data)
+        const universe = buildContractUniverse(data, ticker)
 
         if (!universe) {
           console.warn(
@@ -66,23 +64,22 @@ export async function screenCandidates(): Promise<{
 
         return {
           ticker,
-          summary: universe,
+          contracts: universe.contracts,
+          summary: universe.summary,
         }
       } catch (err) {
-        console.warn(
-          `[screener] skipping non-optionable mover ${ticker}:`,
-          err
-        )
+        console.warn(`[screener] skipping non-optionable mover ${ticker}:`, err)
         return null
       }
     })
   )
 
   const valid = validCandidates.filter(
-    (
-      candidate
-    ): candidate is { ticker: string; summary: string } =>
-      candidate !== null
+    (candidate): candidate is {
+      ticker: string
+      contracts: ContractQuote[]
+      summary: string
+    } => candidate !== null
   )
 
   // If the market movers produced nothing usable, try the fallback
@@ -99,10 +96,9 @@ export async function screenCandidates(): Promise<{
             underlying_symbol: ticker,
           })
 
-          const { data } =
-            parseAlpacaToolResult<OptionChainData>(raw)
+          const { data } = parseAlpacaToolResult<OptionChainData>(raw)
 
-          const universe = buildContractUniverse(data)
+          const universe = buildContractUniverse(data, ticker)
 
           if (!universe) {
             console.warn(
@@ -113,7 +109,8 @@ export async function screenCandidates(): Promise<{
 
           return {
             ticker,
-            summary: universe,
+            contracts: universe.contracts,
+            summary: universe.summary,
           }
         } catch (err) {
           console.warn(
@@ -126,90 +123,69 @@ export async function screenCandidates(): Promise<{
     )
 
     const fallbackValid = fallbackCandidates.filter(
-      (
-        candidate
-      ): candidate is { ticker: string; summary: string } =>
-        candidate !== null
+      (candidate): candidate is {
+        ticker: string
+        contracts: ContractQuote[]
+        summary: string
+      } => candidate !== null
     )
 
     if (fallbackValid.length === 0) {
       return {
         tickers: FALLBACK_TICKERS,
         marketData: "No usable option contracts found",
+        contractUniverse: [],
       }
     }
 
-    const fallbackTickers = fallbackValid.map(
-      (candidate) => candidate.ticker
-    )
+    const fallbackTickers = fallbackValid.map((candidate) => candidate.ticker)
 
     const fallbackMarketData = fallbackValid
-      .map(
-        (candidate) =>
-          `${candidate.ticker}:\n${candidate.summary}`
-      )
+      .map((candidate) => `${candidate.ticker}:\n${candidate.summary}`)
       .join("\n\n")
 
-    console.log(
-      "[screener] usable fallback contracts:",
-      fallbackTickers
-    )
+    console.log("[screener] usable fallback contracts:", fallbackTickers)
 
     return {
       tickers: fallbackTickers,
       marketData: fallbackMarketData,
+      contractUniverse: [],
     }
   }
 
   const tickers = valid.map((candidate) => candidate.ticker)
 
   const marketData = valid
-    .map(
-      (candidate) =>
-        `${candidate.ticker}:\n${candidate.summary}`
-    )
+    .map((candidate) => `${candidate.ticker}:\n${candidate.summary}`)
     .join("\n\n")
 
-  console.log(
-    "[screener] optionable market movers:",
-    tickers
-  )
+  console.log("[screener] optionable market movers:", tickers)
 
   return {
     tickers,
     marketData,
+    contractUniverse: valid.flatMap((candidate) => candidate.contracts),
   }
 }
 
-async function getMoverTickers(
-  moversTool: McpTool
-): Promise<string[]> {
+async function getMoverTickers(moversTool: McpTool): Promise<string[]> {
   try {
     const raw = await moversTool.invoke({
       market_type: "stocks",
       top: 5,
     })
 
-    const { data } =
-      parseAlpacaToolResult<MarketMoversData>(raw)
+    const { data } = parseAlpacaToolResult<MarketMoversData>(raw)
 
-    const gainers = data.gainers
-      .map((m) => m.symbol)
-      .slice(0, 3)
+    const gainers = data.gainers.map((m) => m.symbol).slice(0, 3)
 
-    const losers = data.losers
-      .map((m) => m.symbol)
-      .slice(0, 3)
+    const losers = data.losers.map((m) => m.symbol).slice(0, 3)
 
-    const tickers = [
-      ...new Set([...gainers, ...losers]),
-    ]
+    const tickers = [...new Set([...gainers, ...losers])]
 
     console.log("[screener] market movers:", tickers)
 
-    return tickers.length > 0
-      ? tickers
-      : FALLBACK_TICKERS
+    return tickers.length > 0 ? tickers : FALLBACK_TICKERS
   } catch (err) {
     console.warn(
       "[screener] get_market_movers failed, using fallback basket:",
@@ -231,34 +207,29 @@ async function getMoverTickers(
  * 4. Keep the nearest few expirations.
  * 5. Select contracts across useful delta ranges.
  */
+
 function buildContractUniverse(
-  data: OptionChainData
-): string | null {
-  const today = new Date()
-    .toISOString()
-    .slice(0, 10)
+  data: OptionChainData,
+  ticker: string
+): {
+  contracts: ContractQuote[]
+  summary: string
+} | null {
+  const today = new Date().toISOString().slice(0, 10)
 
   const contracts: ParsedContract[] = []
 
-  for (const [symbol, snapshot] of Object.entries(
-    data.snapshots
-  )) {
+  for (const [symbol, snapshot] of Object.entries(data.snapshots)) {
     const parsed = parseOccSymbol(symbol)
 
-    if (!parsed) {
-      continue
-    }
+    if (!parsed) continue
 
-    // Never expose expired contracts to the agents.
-    if (parsed.expiration < today) {
-      continue
-    }
+    if (parsed.expiration < today) continue
 
     const quote = snapshot.latestQuote
     const greeks = snapshot.greeks
     const iv = snapshot.impliedVolatility
 
-    // We need an actual tradable quote and analytics.
     if (!quote || !greeks || iv === undefined) {
       continue
     }
@@ -267,17 +238,24 @@ function buildContractUniverse(
       continue
     }
 
-    // Ignore obviously invalid/crossed markets.
     if (quote.ap < quote.bp) {
       continue
     }
 
     contracts.push({
       symbol,
+      ticker,
+      snapshot,
       expiration: parsed.expiration,
       type: parsed.type,
       strike: parsed.strike,
-      snapshot,
+      bid: quote.bp,
+      ask: quote.ap,
+      impliedVolatility: iv,
+      delta: greeks.delta,
+      gamma: greeks.gamma,
+      theta: greeks.theta,
+      vega: greeks.vega,
     })
   }
 
@@ -286,11 +264,7 @@ function buildContractUniverse(
   }
 
   const expirations = [
-    ...new Set(
-      contracts.map(
-        (contract) => contract.expiration
-      )
-    ),
+    ...new Set(contracts.map((contract) => contract.expiration)),
   ]
     .sort()
     .slice(0, MAX_EXPIRATIONS)
@@ -299,8 +273,7 @@ function buildContractUniverse(
 
   for (const expiration of expirations) {
     const expirationContracts = contracts.filter(
-      (contract) =>
-        contract.expiration === expiration
+      (contract) => contract.expiration === expiration
     )
 
     const calls = expirationContracts.filter(
@@ -311,19 +284,12 @@ function buildContractUniverse(
       (contract) => contract.type === "put"
     )
 
-    const selectedCalls = selectByDelta(
-      calls,
-      Math.floor(CONTRACTS_PER_EXPIRATION / 2)
-    )
-
-    const selectedPuts = selectByDelta(
-      puts,
-      Math.floor(CONTRACTS_PER_EXPIRATION / 2)
+    selected.push(
+      ...selectByDelta(calls, Math.floor(CONTRACTS_PER_EXPIRATION / 2))
     )
 
     selected.push(
-      ...selectedCalls,
-      ...selectedPuts
+      ...selectByDelta(puts, Math.floor(CONTRACTS_PER_EXPIRATION / 2))
     )
   }
 
@@ -331,12 +297,10 @@ function buildContractUniverse(
     return null
   }
 
-  return selected
+  const summary = selected
     .sort((a, b) => {
       if (a.expiration !== b.expiration) {
-        return a.expiration.localeCompare(
-          b.expiration
-        )
+        return a.expiration.localeCompare(b.expiration)
       }
 
       if (a.type !== b.type) {
@@ -347,6 +311,11 @@ function buildContractUniverse(
     })
     .map(formatContract)
     .join("\n")
+
+  return {
+    contracts: selected,
+    summary,
+  }
 }
 
 /**
@@ -370,20 +339,11 @@ function selectByDelta(
     }
 
     const candidate = contracts
-      .filter(
-        (contract) =>
-          !selected.includes(contract)
-      )
+      .filter((contract) => !selected.includes(contract))
       .sort((a, b) => {
-        const deltaA = Math.abs(
-          Math.abs(a.snapshot.greeks!.delta) -
-            target
-        )
+        const deltaA = Math.abs(Math.abs(a.snapshot.greeks!.delta) - target)
 
-        const deltaB = Math.abs(
-          Math.abs(b.snapshot.greeks!.delta) -
-            target
-        )
+        const deltaB = Math.abs(Math.abs(b.snapshot.greeks!.delta) - target)
 
         return deltaA - deltaB
       })[0]
@@ -396,13 +356,10 @@ function selectByDelta(
   return selected
 }
 
-function formatContract(
-  contract: ParsedContract
-): string {
+function formatContract(contract: ParsedContract): string {
   const quote = contract.snapshot.latestQuote!
   const greeks = contract.snapshot.greeks!
-  const iv =
-    contract.snapshot.impliedVolatility!
+  const iv = contract.snapshot.impliedVolatility!
 
   return [
     `  ${contract.expiration}`,
@@ -429,24 +386,19 @@ function formatContract(
  * -> type: call
  * -> strike: 375
  */
-function parseOccSymbol(
-  symbol: string
-): {
+function parseOccSymbol(symbol: string): {
   underlying: string
   expiration: string
   type: "call" | "put"
   strike: number
 } | null {
-  const match = symbol.match(
-    /^(.+?)(\d{6})([CP])(\d{8})$/
-  )
+  const match = symbol.match(/^(.+?)(\d{6})([CP])(\d{8})$/)
 
   if (!match) {
     return null
   }
 
-  const [, underlying, dateCode, typeCode, strikeCode] =
-    match
+  const [, underlying, dateCode, typeCode, strikeCode] = match
 
   const year = `20${dateCode.slice(0, 2)}`
   const month = dateCode.slice(2, 4)
@@ -454,8 +406,7 @@ function parseOccSymbol(
 
   const expiration = `${year}-${month}-${day}`
 
-  const strike =
-    Number.parseInt(strikeCode, 10) / 1000
+  const strike = Number.parseInt(strikeCode, 10) / 1000
 
   return {
     underlying,
