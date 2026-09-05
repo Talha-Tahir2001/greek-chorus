@@ -120,54 +120,6 @@ async function committeeNode(
   }
 }
 
-// async function committeeNode(state: GraphStateType): Promise<Partial<GraphStateType>> {
-//   console.log("[graph] committee: start");
-//   const proposals: (PersonaProposal & { persona: string })[] = [];
-
-//   for (const propose of personas) {
-//     try {
-//       const result = await withTimeout(
-//         propose({ tickers: state.tickersScreened, marketData: state.marketData }),
-//         30_000,
-//         "persona"
-//       );
-//       proposals.push(result);
-//       console.log(`[graph] committee: ${result.persona} done — ${result.ticker}`);
-//     } catch (err) {
-//       console.warn("[graph] committee: a persona failed/timed out, skipping it:", err);
-//     }
-//   }
-
-//   console.log("[graph] committee: done, proposals:", proposals.length);
-//   return {
-//     proposals,
-//     personaMessages: proposals.map((p) => ({ persona: p.persona, content: p.rationale, stance: p.stance, proposedTicker: p.ticker })),
-//   };
-// }
-
-// async function riskGateNode(
-//   state: GraphStateType
-// ): Promise<Partial<GraphStateType>> {
-//   const majority = majorityDecision(state.proposals)
-//   if (!majority) {
-//     return {
-//       riskGate: {
-//         verdict: "rejected",
-//         reasoning: "No majority consensus this cycle.",
-//       },
-//       finalTicker: null,
-//     }
-//   }
-//   const verdict = await runRiskGate({
-//     proposal: majority.group[0],
-//     openPositionsCount: 0,
-//     equity: 100000,
-//   })
-//   return {
-//     riskGate: verdict,
-//     finalTicker: verdict.verdict === "rejected" ? null : majority.ticker,
-//   }
-// }
 
 async function riskGateNode(
   state: GraphStateType
@@ -192,7 +144,7 @@ async function riskGateNode(
 
   const verdict = await withTimeout(
     runRiskGate({
-      proposal: majority.group[0],
+      proposal: majority.representative,
       openPositionsCount,
       equity,
     }),
