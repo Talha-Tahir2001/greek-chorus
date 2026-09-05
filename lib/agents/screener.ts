@@ -75,7 +75,9 @@ export async function screenCandidates(): Promise<{
   )
 
   const valid = validCandidates.filter(
-    (candidate): candidate is {
+    (
+      candidate
+    ): candidate is {
       ticker: string
       contracts: ContractQuote[]
       summary: string
@@ -123,7 +125,9 @@ export async function screenCandidates(): Promise<{
     )
 
     const fallbackValid = fallbackCandidates.filter(
-      (candidate): candidate is {
+      (
+        candidate
+      ): candidate is {
         ticker: string
         contracts: ContractQuote[]
         summary: string
@@ -149,7 +153,9 @@ export async function screenCandidates(): Promise<{
     return {
       tickers: fallbackTickers,
       marketData: fallbackMarketData,
-      contractUniverse: [],
+      contractUniverse: fallbackValid.flatMap(
+        (candidate) => candidate.contracts
+      ),
     }
   }
 
