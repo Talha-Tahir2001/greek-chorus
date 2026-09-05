@@ -18,6 +18,7 @@ import {
 import { mapWithLimit } from "../utils/concurrency"
 import { withTimeout } from "../utils/timeout"
 import { validateProposalContracts } from "./contract-validator"
+import { calculateTradeRisk } from "./risk-calculator"
 // const personas = [premiumSeller, volatilityHunter, contrarian]
 const personas = [
   { name: "Premium Seller", propose: premiumSeller },
@@ -63,7 +64,11 @@ async function screenerNode(): Promise<Partial<GraphStateType>> {
     "screener"
   )
   console.log("[graph] screener: done", tickers)
-  return { tickersScreened: tickers, marketData: marketData, contractUniverse: contractUniverse }
+  return {
+    tickersScreened: tickers,
+    marketData: marketData,
+    contractUniverse: contractUniverse,
+  }
 }
 async function committeeNode(
   state: GraphStateType
@@ -145,26 +150,71 @@ async function riskGateNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
   console.log("[graph] risk gate: start")
+
   const majority = majorityDecision(state.proposals)
+
   if (!majority) {
     console.log("[graph] risk gate: no majority")
+
     return {
       riskGate: {
         verdict: "rejected",
         reasoning: "No majority consensus this cycle.",
       },
       finalTicker: null,
+      tradeRisk: null,
     }
   }
+
+  const proposal = majority.representative
+
+  // Get current account state before calculating the risk limit.
   const { equity, openPositionsCount } = await withTimeout(
     getAccountState(),
     15_000,
     "risk-gate account state"
   )
 
+  // Deterministic risk calculation.
+  const tradeRisk = calculateTradeRisk(proposal, state.contractUniverse)
+
+  const maxRisk = equity * 0.05
+
+  console.log("[graph] deterministic risk:", {
+    ticker: majority.ticker,
+    maxLoss: tradeRisk.maxLoss,
+    maxProfit: tradeRisk.maxProfit,
+    netPremium: tradeRisk.netPremium,
+    definedRisk: tradeRisk.definedRisk,
+    maxAllowedRisk: maxRisk,
+    equity,
+  })
+
+  // Hard risk limit. The LLM cannot override this.
+  if (tradeRisk.maxLoss > maxRisk) {
+    console.warn("[graph] deterministic risk rejected:", {
+      maxLoss: tradeRisk.maxLoss,
+      maxAllowedRisk: maxRisk,
+    })
+
+    return {
+      finalTicker: null,
+      tradeRisk,
+      riskGate: {
+        verdict: "rejected",
+        reasoning:
+          `Trade rejected by deterministic risk control: ` +
+          `maximum loss is $${tradeRisk.maxLoss.toFixed(2)}, ` +
+          `which exceeds 5% of account equity ` +
+          `($${maxRisk.toFixed(2)}).`,
+      },
+    }
+  }
+
+  // LLM risk assessment happens only after deterministic checks pass.
   const verdict = await withTimeout(
     runRiskGate({
-      proposal: majority.representative,
+      proposal,
       openPositionsCount,
       equity,
     }),
@@ -180,6 +230,7 @@ async function riskGateNode(
   return {
     riskGate: verdict,
     finalTicker: verdict.verdict === "rejected" ? null : majority.ticker,
+    tradeRisk,
   }
 }
 
@@ -187,6 +238,11 @@ async function executionNode(
   state: GraphStateType
 ): Promise<Partial<GraphStateType>> {
   console.log("[graph] execution: start")
+  if (state.riskGate?.verdict !== "approved") {
+    console.log("[execution] skipped — risk gate did not approve trade")
+
+    return {}
+  }
   const winningProposal =
     state.proposals.find((p) => p.ticker === state.finalTicker) ?? null
   const result = await withTimeout(
@@ -247,16 +303,39 @@ async function executionNode(
   return {}
 }
 
+// export function buildGraph() {
+//   return new StateGraph(GraphState)
+//     .addNode("screener", screenerNode)
+//     .addNode("committee", committeeNode)
+//     .addNode("risk_gate", riskGateNode)
+//     .addNode("execution", executionNode)
+//     .addEdge(START, "screener")
+//     .addEdge("screener", "committee")
+//     .addEdge("committee", "risk_gate")
+//     .addEdge("risk_gate", "execution")
+//     .addEdge("execution", END)
+//     .compile()
+// }
+
 export function buildGraph() {
   return new StateGraph(GraphState)
     .addNode("screener", screenerNode)
     .addNode("committee", committeeNode)
     .addNode("risk_gate", riskGateNode)
     .addNode("execution", executionNode)
+
     .addEdge(START, "screener")
     .addEdge("screener", "committee")
     .addEdge("committee", "risk_gate")
-    .addEdge("risk_gate", "execution")
+
+    .addConditionalEdges(
+      "risk_gate",
+      (state) =>
+        state.riskGate?.verdict === "approved"
+          ? "execution"
+          : END
+    )
+
     .addEdge("execution", END)
     .compile()
 }
