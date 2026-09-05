@@ -28,6 +28,14 @@ export interface ContractQuote {
   vega: number
 }
 
+export interface TradeRisk {
+  maxLoss: number
+  maxProfit: number | null
+  netPremium: number
+  definedRisk: boolean
+  description: string
+}
+
 export const GraphState = Annotation.Root({
   sessionId: Annotation<string>,
   tickersScreened: Annotation<string[]>({
@@ -54,6 +62,10 @@ export const GraphState = Annotation.Root({
   contractUniverse: Annotation<ContractQuote[]>({
     reducer: (_, n) => n,
     default: () => [],
+  }),
+  tradeRisk: Annotation<TradeRisk | null>({
+    reducer: (_, n) => n,
+    default: () => null,
   }),
 })
 
