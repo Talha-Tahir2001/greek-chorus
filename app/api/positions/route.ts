@@ -4,16 +4,16 @@ import { getAlpaca } from "@/lib/alpaca/client"
 export async function GET() {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const positions: any[] = await getAlpaca().trading.positions.getAllOpenPositions()
+    const positions = await getAlpaca().trading.positions.getAllOpenPositions()
     const data = positions.map((p) => ({
       symbol: String(p.symbol),
       qty: String(p.qty),
-      avgEntryPrice: String(p.avg_entry_price),
-      currentPrice: String(p.current_price),
-      unrealizedPl: String(p.unrealized_pl),
-      unrealizedPlpc: String(p.unrealized_plpc),
+      avgEntryPrice: String(p.avgEntryPrice),
+      currentPrice: String(p.currentPrice),
+      unrealizedPl: String(p.unrealizedPl),
+      unrealizedPlpc: String(p.unrealizedPlpc),
       side: String(p.side),
-      assetClass: String(p.asset_class),
+      assetClass: String(p.assetClass),
     }))
     return NextResponse.json({ positions: data })
   } catch (err) {
