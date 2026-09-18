@@ -67,6 +67,12 @@ export const GraphState = Annotation.Root({
     reducer: (_, n) => n,
     default: () => null,
   }),
+  selectedProposal: Annotation<
+    (PersonaProposal & { persona: string }) | null
+  >({
+    reducer: (_, n) => n,
+    default: () => null,
+  }),
 })
 
 export type GraphStateType = typeof GraphState.State
