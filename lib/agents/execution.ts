@@ -243,38 +243,41 @@ export async function executeDecision(params: {
    *   positive limit_price = debit
    *   negative limit_price = credit
    */
+  const netPremium =
+    shortLeg.contract.bid - longLeg.contract.ask;
+
+  if (Math.abs(netPremium) < 0.01) {
+    console.warn(
+      `[execution] Spread has no meaningful executable price: ${netPremium.toFixed(4)}`,
+    );
+
+    return { action: "rejected" };
+  }
+
   let limitPrice: number;
   let strategy: "credit_spread" | "debit_spread";
 
-  if (shortLeg.leg.side === "sell") {
-    const credit =
-      shortLeg.contract.bid - longLeg.contract.ask;
-
-    if (credit <= 0) {
-      console.warn(
-        `[execution] Credit spread has no positive executable credit: ${credit.toFixed(4)}`,
-      );
-
-      return { action: "rejected" };
-    }
-
-    limitPrice = -credit;
+  if (netPremium > 0) {
+    // We receive a net credit.
     strategy = "credit_spread";
+    limitPrice = -netPremium;
   } else {
-    const debit =
-      longLeg.contract.ask - shortLeg.contract.bid;
-
-    if (debit <= 0) {
-      console.warn(
-        `[execution] Debit spread has no positive executable debit: ${debit.toFixed(4)}`,
-      );
-
-      return { action: "rejected" };
-    }
-
-    limitPrice = debit;
+    // We pay a net debit.
     strategy = "debit_spread";
+    limitPrice = Math.abs(netPremium);
   }
+
+  limitPrice = Number(limitPrice.toFixed(2));
+
+  console.log("[execution] Spread pricing:", {
+    longSymbol: longLeg.symbol,
+    longAsk: longLeg.contract.ask,
+    shortSymbol: shortLeg.symbol,
+    shortBid: shortLeg.contract.bid,
+    netPremium,
+    strategy,
+    limitPrice,
+  });
 
   const alpacaLegs = resolvedLegs.map(
     ({ leg, symbol }) => ({
