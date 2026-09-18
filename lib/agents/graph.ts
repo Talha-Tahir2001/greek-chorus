@@ -162,6 +162,7 @@ async function riskGateNode(
         reasoning: "No majority consensus this cycle.",
       },
       finalTicker: null,
+      selectedProposal: null,
       tradeRisk: null,
     }
   }
@@ -199,6 +200,7 @@ async function riskGateNode(
 
     return {
       finalTicker: null,
+      selectedProposal: null,
       tradeRisk,
       riskGate: {
         verdict: "rejected",
@@ -230,6 +232,7 @@ async function riskGateNode(
   return {
     riskGate: verdict,
     finalTicker: verdict.verdict === "rejected" ? null : majority.ticker,
+    selectedProposal: verdict.verdict === "approved" ? proposal : null,
     tradeRisk,
   }
 }
@@ -249,7 +252,8 @@ async function executionNode(
     executeDecision({
       finalTicker: state.finalTicker,
       riskGate: state.riskGate!,
-      proposal: winningProposal,
+      proposal: state.selectedProposal,
+      contractUniverse: state.contractUniverse,
     }),
     45_000,
     "execution"
