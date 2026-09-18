@@ -15,10 +15,35 @@ export function getAlpaca() {
 
 export async function getAccountSnapshot() {
   const account = await getAlpaca().trading.account.getAccount();
-  return { equity: Number(account.equity), buyingPower: Number(account.buying_power) };
+  return { equity: Number(account.equity), buyingPower: Number(account.buyingPower) };
 }
 
 export async function getPositionsCount() {
   const positions = await getAlpaca().trading.positions.getAllOpenPositions();
   return positions.length;
+}
+
+export interface OpenPosition {
+  symbol: string;
+  qty: number;
+  side: string;
+  avgEntryPrice: number;
+  currentPrice: number;
+  marketValue: number;
+  unrealizedPl: number;
+  unrealizedPlPercent: number;
+}
+
+export async function getOpenPositions(): Promise<OpenPosition[]> {
+  const positions = await getAlpaca().trading.positions.getAllOpenPositions();
+  return positions.map((p) => ({
+    symbol: p.symbol,
+    qty: Number(p.qty),
+    side: p.side,
+    avgEntryPrice: Number(p.avgEntryPrice),
+    currentPrice: Number(p.currentPrice),
+    marketValue: Number(p.marketValue),
+    unrealizedPl: Number(p.unrealizedPl),
+    unrealizedPlPercent: Number(p.unrealizedPlpc) * 100,
+  }));
 }
