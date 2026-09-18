@@ -7,7 +7,7 @@ export async function GET() {
     const positions = await getAlpaca().trading.positions.getAllOpenPositions()
     return NextResponse.json({
       equity: Number(account.equity),
-      buyingPower: Number(account.buying_power),
+      buyingPower: Number(account.buyingPower),
       positionsCount: positions.length,
     })
   } catch (err) {
