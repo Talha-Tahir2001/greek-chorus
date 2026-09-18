@@ -126,6 +126,11 @@ export function calculateTradeRisk(
     // Credit spread
     if (shortPosition.leg.side === "sell" && longPosition.leg.side === "buy") {
       const credit = shortLeg.bid - longLeg.ask
+      if (credit <= 0) {
+        throw new Error(
+          `Credit spread does not have a positive executable credit: ${credit.toFixed(2)}`
+        );
+      }
       const creditDollars = credit * 100
 
       return {
