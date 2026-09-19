@@ -14,6 +14,7 @@ import {
   logDecision,
   logEquitySnapshot,
   markSessionStatus,
+  updateSessionTickers,
 } from "@/lib/db/queries"
 import { mapWithLimit } from "../utils/concurrency"
 import { withTimeout } from "../utils/timeout"
@@ -56,13 +57,14 @@ function majorityDecision(
   return { ticker, group, representative: withLegs }
 }
 
-async function screenerNode(): Promise<Partial<GraphStateType>> {
+async function screenerNode(state: GraphStateType): Promise<Partial<GraphStateType>> {
   console.log("[graph] screener: start")
   const { tickers, marketData, contractUniverse } = await withTimeout(
     screenCandidates(),
     60_000,
     "screener"
   )
+  await updateSessionTickers(state.sessionId, tickers);
   console.log("[graph] screener: done", tickers)
   return {
     tickersScreened: tickers,
