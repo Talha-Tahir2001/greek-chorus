@@ -1,7 +1,7 @@
 // Path: lib/agents/execution.ts
 
 import { getAlpacaMcpTools } from "@/lib/mcp/client";
-import { getAccountSnapshot, getPositionsCount } from "@/lib/alpaca/client";
+import { getAccountSnapshot, getOrder, getPositionsCount } from "@/lib/alpaca/client";
 import { buildOccSymbol } from "@/lib/mcp/occ-symbol";
 import { parseAlpacaToolResult } from "@/lib/mcp/parse-result";
 
@@ -64,7 +64,7 @@ export async function executeDecision(params: {
   proposal: (PersonaProposal & { persona: string }) | null;
   contractUniverse: ContractQuote[];
 }): Promise<{
-  action: "open" | "skip" | "rejected" | "dry_run";
+  action: "skipped" | "rejected" | "submitted" | "dry_run";
   alpacaOrderId?: string;
 }> {
   const legs = params.proposal?.proposedLegs;
@@ -74,7 +74,7 @@ export async function executeDecision(params: {
     params.riskGate.verdict === "rejected" ||
     !legs?.length
   ) {
-    return { action: "skip" };
+    return { action: "skipped" };
   }
 
   const ticker = params.finalTicker;
@@ -163,7 +163,7 @@ export async function executeDecision(params: {
     });
 
     return {
-      action: "open",
+      action: "submitted",
       alpacaOrderId: data.id,
     };
   }
@@ -187,7 +187,7 @@ export async function executeDecision(params: {
       `[execution] Unsupported ${resolvedLegs.length}-leg strategy on ${ticker}`,
     );
 
-    return { action: "skip" };
+    return { action: "skipped" };
   }
 
   const [first, second] = resolvedLegs;
@@ -354,6 +354,14 @@ export async function executeDecision(params: {
     return { action: "rejected" };
   }
 
+  if (!data.id) {
+    console.warn(
+      "[execution] Alpaca accepted the request but returned no order ID.",
+    );
+
+    return { action: "rejected" };
+  }
+
   console.log("[execution] MLeg order submitted:", {
     id: data.id,
     status: data.status,
@@ -363,8 +371,30 @@ export async function executeDecision(params: {
     legs: alpacaLegs,
   });
 
+  const order = await getOrder(data.id);
+  console.log("[execution] Order verification:", {
+    id: order.id,
+    status: order.status,
+    filledQty: order.filledQty,
+    filledAvgPrice: order.filledAvgPrice,
+    orderClass: order.orderClass,
+  });
+
+  if (order.status === "filled") {
+    console.log("[execution] Order filled:", order.id);
+
+    return {
+      action: "submitted",
+      alpacaOrderId: order.id,
+    };
+  }
+
+  console.log(
+    `[execution] Order is ${order.status}; position may not exist yet.`,
+  );
+
   return {
-    action: "open",
+    action: "submitted",
     alpacaOrderId: data.id,
   };
 }
