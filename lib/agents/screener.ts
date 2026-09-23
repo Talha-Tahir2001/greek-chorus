@@ -8,6 +8,7 @@ import type {
   OptionSnapshot,
 } from "@/lib/mcp/alpaca-types"
 import type { ContractQuote } from "./state"
+import { parseOccSymbol } from "../mcp/occ-symbol"
 
 const FALLBACK_TICKERS = ["SPY", "QQQ", "AAPL", "NVDA", "TSLA"]
 
@@ -223,28 +224,55 @@ function buildContractUniverse(
 } | null {
   const today = new Date().toISOString().slice(0, 10)
 
+  const snapshots = Object.entries(data.snapshots);
+
+  console.log(`[screener] ${ticker}: chain snapshots=${snapshots.length}`)
+
+  let invalidOcc = 0;
+  let expired = 0;
+  let missingMarketData = 0;
+  let invalidQuote = 0;
+  let invalidSpread = 0;
+
   const contracts: ParsedContract[] = []
 
-  for (const [symbol, snapshot] of Object.entries(data.snapshots)) {
-    const parsed = parseOccSymbol(symbol)
+  for (const [symbol, snapshot] of snapshots) {
+    const parsed = parseOccSymbol(symbol, ticker)
 
-    if (!parsed) continue
+    if (!parsed) {
+      if (invalidOcc < 3) {
+        console.log(
+          `[screener] ${ticker}: rejected OCC symbol`,
+          symbol,
+        );
+      }
 
-    if (parsed.expiration < today) continue
+      invalidOcc++;
+      continue;
+    }
+
+    if (parsed.expiration < today) {
+      expired++;
+      continue;
+    }
+
 
     const quote = snapshot.latestQuote
     const greeks = snapshot.greeks
     const iv = snapshot.impliedVolatility
 
     if (!quote || !greeks || iv === undefined) {
+      missingMarketData++;
       continue
     }
 
     if (quote.bp <= 0 || quote.ap <= 0) {
-      continue
+      invalidQuote;
+      continue;
     }
 
     if (quote.ap < quote.bp) {
+      invalidSpread;
       continue
     }
 
@@ -253,7 +281,7 @@ function buildContractUniverse(
       ticker,
       snapshot,
       expiration: parsed.expiration,
-      type: parsed.type,
+      type: parsed.optionType,
       strike: parsed.strike,
       bid: quote.bp,
       ask: quote.ap,
@@ -264,6 +292,16 @@ function buildContractUniverse(
       vega: greeks.vega,
     })
   }
+
+  console.log(`[screener] ${ticker}: filter diagnostics`, {
+    total: snapshots.length,
+    invalidOcc,
+    expired,
+    missingMarketData,
+    invalidQuote,
+    invalidSpread,
+    usable: contracts.length,
+  });
 
   if (contracts.length === 0) {
     return null
@@ -379,45 +417,4 @@ function formatContract(contract: ParsedContract): string {
     `      theta=${greeks.theta.toFixed(4)}`,
     `      vega=${greeks.vega.toFixed(4)}`,
   ].join("\n")
-}
-
-/**
- * Parse an OCC option symbol from the right-hand side.
- *
- * Example:
- * AAPL260904C00375000
- *
- * -> underlying: AAPL
- * -> expiration: 2026-09-04
- * -> type: call
- * -> strike: 375
- */
-function parseOccSymbol(symbol: string): {
-  underlying: string
-  expiration: string
-  type: "call" | "put"
-  strike: number
-} | null {
-  const match = symbol.match(/^(.+?)(\d{6})([CP])(\d{8})$/)
-
-  if (!match) {
-    return null
-  }
-
-  const [, underlying, dateCode, typeCode, strikeCode] = match
-
-  const year = `20${dateCode.slice(0, 2)}`
-  const month = dateCode.slice(2, 4)
-  const day = dateCode.slice(4, 6)
-
-  const expiration = `${year}-${month}-${day}`
-
-  const strike = Number.parseInt(strikeCode, 10) / 1000
-
-  return {
-    underlying,
-    expiration,
-    type: typeCode === "C" ? "call" : "put",
-    strike,
-  }
 }
